@@ -1,0 +1,42 @@
+name: Sync egui from upstream
+
+on:
+  schedule:
+    - cron: '0 * * * *'  # jede volle Stunde
+  workflow_dispatch:      # manuell startbar
+
+jobs:
+  sync:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout your repository
+        uses: actions/checkout@v4
+        with:
+          persist-credentials: false  # wir nutzen später ein eigenes Token
+          fetch-depth: 0
+
+      - name: Set up Git
+        run: |
+          git config user.name "GitHub Actions"
+          git config user.email "actions@github.com"
+
+      - name: Add upstream remote
+        run: git remote add upstream https://github.com/emilk/egui.git
+
+      - name: Fetch upstream changes
+        run: git fetch upstream
+
+      - name: Merge upstream/main into local main
+        run: |
+          git checkout main
+          git merge upstream/main --no-edit || echo "No changes to merge"
+
+      - name: Push changes if any
+        env:
+          GH_TOKEN: ${{ secrets.GH_TOKEN }}
+        run: |
+          if git diff --quiet origin/main; then
+            echo "No changes to push."
+          else
+            git push https://x-access-token:${GH_TOKEN}@github.com/${{ github.repository }}.git main
+          fi
